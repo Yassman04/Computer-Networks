@@ -50,6 +50,8 @@ public class HTTPServer {
             }
         }
 
+        writer.write (" http://127.0.0.1:200/OK\n");
+
         // We can read what the client has said
         String message = reader.readLine();
         System.out.println("The client said : " + message);
