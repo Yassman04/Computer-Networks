@@ -4,12 +4,12 @@ import java.net.*;
 public class HTTPServer {
 
     public static void main(String[] args) throws IOException {
-        int port = 18080; // Keep port as 18080 as required
+        int port = 18080; 
 
         System.out.println("Opening the server socket on port " + port);
         ServerSocket serverSocket = new ServerSocket(port);
 
-        while (true) { // Keep server running to handle multiple requests
+        while (true) { 
             System.out.println("Server waiting for client...");
             Socket clientSocket = serverSocket.accept();
             System.out.println("Client connected!");
