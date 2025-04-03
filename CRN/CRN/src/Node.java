@@ -142,72 +142,41 @@ public class Node implements NodeInterface {
     public String read(String key) throws Exception {
         System.out.println("Reading key: " + key);
 
-        //Check if the key is found locally
+        // First check if the key exists locally.
         if (keyValueStore.containsKey(key)) {
             System.out.println("Found locally: " + keyValueStore.get(key));
             return keyValueStore.get(key);
         }
 
+        // If not found locally, ask the other nodes.
         System.out.println("Key not found locally. Asking other nodes...");
-
-        // query other nodes for the key
-        Set<String> queriedNodes = new HashSet<>();
-        Queue<String> nodesToQuery = new LinkedList<>(addressTable.values());  // Queue with nodes to query
-
-        while (!nodesToQuery.isEmpty()) {
-            String address = nodesToQuery.poll();
-
-            // Skip nodes we've already queried
-            if (queriedNodes.contains(address)) {
-                continue;
-            }
-            queriedNodes.add(address);
-
+        for (String address : addressTable.values()) {
             System.out.println("Querying node at: " + address);
-            sendMessage("R " + key, address);  // Send request to the node
-
-            //Receive response
+            sendMessage("R " + key, address);
             String response = receiveMessage();
-            if (response == null) {
-                continue;  // No response, skip to the next node
-            }
-
-            //Handle different response types
-            String[] responseParts = response.split(" ", 2);
-            String responseType = responseParts[0];
-
-            if (responseType.equals("S")) {
-                // 'S' means the node has data for the key (either 'S Y <data>' or 'S N')
-                if (responseParts[1].equals("Y")) {
-                    System.out.println("Found data: " + responseParts[1].substring(2));  // Data part
-                    return responseParts[1].substring(2);  // Return the actual data
-                }
-            } else if (responseType.equals("O")) {
-                // 'O' means the node doesn't have the data but suggests another node
-                String suggestedNode = responseParts[1];
-                System.out.println("Node does not have data, suggesting node: " + suggestedNode);
-
-                // Add the suggested node to the query list if not already queried
-                if (!queriedNodes.contains(suggestedNode)) {
-                    nodesToQuery.add(suggestedNode);
-                }
+            if (response != null && response.startsWith("S Y")) {
+                System.out.println("Received response from other node: " + response.substring(4));
+                return response.substring(4);
             }
         }
 
-        //If no data is found after querying all nodes
+        // If no response from other nodes, return null.
         System.out.println("No other nodes had the key.");
         return null;
     }
 
     public boolean write(String key, String value) throws Exception {
         System.out.println("Writing key: " + key + " with value: " + value);
-        
+
+        // Try to find the nearest node for the given key.
         String nearestNode = getNearestNode(key);
         if (nearestNode == null || nearestNode.equals(getLocalAddress())) {
+            // If it's the local node or no nearest node, store it locally.
             keyValueStore.put(key, value);
             return true;
         }
-        
+
+        // Otherwise, send the write request to the nearest node.
         sendMessage("W " + key + " " + value, nearestNode);
         String response = receiveMessage();
         return response != null && response.startsWith("X A");
@@ -216,11 +185,13 @@ public class Node implements NodeInterface {
     public boolean CAS(String key, String currentValue, String newValue) throws Exception {
         String nearestNode = getNearestNode(key);
         if (nearestNode != null && !nearestNode.equals(getLocalAddress())) {
+            // If it's not the local node, forward the CAS request.
             sendMessage("CAS " + key + " " + currentValue + " " + newValue, nearestNode);
             String response = receiveMessage();
             return response != null && response.startsWith("CAS A");
         }
 
+        // Local CAS operation: only succeed if the current value matches.
         if (keyValueStore.containsKey(key) && keyValueStore.get(key).equals(currentValue)) {
             keyValueStore.put(key, newValue);
             return true;
@@ -245,6 +216,10 @@ public class Node implements NodeInterface {
             if (parts.length < 2) return;
             String value = keyValueStore.get(parts[1]);
             sendMessage(value != null ? "S Y " + value : "S N", getSenderAddress());
+        } else if ("CAS".equals(command)) {
+            if (parts.length < 4) return;
+            boolean success = CAS(parts[1], parts[2], parts[3]);
+            sendMessage(success ? "CAS A" : "CAS N", getSenderAddress());
         }
     }
 
