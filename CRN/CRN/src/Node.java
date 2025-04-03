@@ -95,6 +95,8 @@ public class Node implements NodeInterface {
     private Map<String, String> addressTable = new HashMap<>();
     private Set<String> receivedMessages = new HashSet<>();
 
+    private static final String BROADCAST_MESSAGE = "HELLO";  // Broadcast message for discovery
+
     public void setNodeName(String nodeName) throws Exception {
         this.nodeName = nodeName;
         System.out.println("Node name set to: " + nodeName);
@@ -104,6 +106,30 @@ public class Node implements NodeInterface {
         this.port = portNumber;
         this.socket = new DatagramSocket(portNumber);
         System.out.println("Opened port: " + portNumber);
+
+        // Start broadcasting the node's presence periodically
+        new Thread(() -> {
+            try {
+                while (true) {
+                    sendBroadcastMessage();
+                    Thread.sleep(5000); // Broadcast every 5 seconds
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    private void sendBroadcastMessage() {
+        try {
+            String message = "HELLO " + nodeName + " " + getLocalAddress();
+            byte[] data = message.getBytes(StandardCharsets.UTF_8);
+            DatagramPacket packet = new DatagramPacket(data, data.length, InetAddress.getByName("255.255.255.255"), port);
+            socket.send(packet);
+            System.out.println("Broadcasting hello message: " + message);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void handleIncomingMessages(int delay) throws Exception {
@@ -114,6 +140,32 @@ public class Node implements NodeInterface {
                 processMessage(message);
             }
         } catch (SocketTimeoutException ignored) {
+        }
+    }
+
+    private void processMessage(String message) throws Exception {
+        String[] parts = message.split(" ", 3);
+        String command = parts[0];
+
+        // Handle hello messages from other nodes
+        if ("HELLO".equals(command)) {
+            String nodeName = parts[1];
+            String address = parts[2];
+            addNodeToAddressTable(nodeName, address);  // Add node to address table
+        } else if ("G".equals(command)) {
+            sendMessage("H " + nodeName, getSenderAddress());
+        } else if ("W".equals(command)) {
+            if (parts.length < 3) return;
+            keyValueStore.put(parts[1], parts[2]);
+            sendMessage("X A", getSenderAddress());
+        } else if ("R".equals(command)) {
+            if (parts.length < 2) return;
+            String value = keyValueStore.get(parts[1]);
+            sendMessage(value != null ? "S Y " + value : "S N", getSenderAddress());
+        } else if ("CAS".equals(command)) {
+            if (parts.length < 4) return;
+            boolean success = CAS(parts[1], parts[2], parts[3]);
+            sendMessage(success ? "CAS A" : "CAS N", getSenderAddress());
         }
     }
 
@@ -199,30 +251,6 @@ public class Node implements NodeInterface {
         return false;
     }
 
-    private void processMessage(String message) throws Exception {
-        if (receivedMessages.contains(message)) return;
-        receivedMessages.add(message);
-
-        String[] parts = message.split(" ", 3);
-        String command = parts[0];
-
-        if ("G".equals(command)) {
-            sendMessage("H " + nodeName, getSenderAddress());
-        } else if ("W".equals(command)) {
-            if (parts.length < 3) return;
-            keyValueStore.put(parts[1], parts[2]);
-            sendMessage("X A", getSenderAddress());
-        } else if ("R".equals(command)) {
-            if (parts.length < 2) return;
-            String value = keyValueStore.get(parts[1]);
-            sendMessage(value != null ? "S Y " + value : "S N", getSenderAddress());
-        } else if ("CAS".equals(command)) {
-            if (parts.length < 4) return;
-            boolean success = CAS(parts[1], parts[2], parts[3]);
-            sendMessage(success ? "CAS A" : "CAS N", getSenderAddress());
-        }
-    }
-
     private String getNearestNode(String key) throws Exception {
         return addressTable.isEmpty() ? null : addressTable.values().iterator().next();
     }
@@ -250,5 +278,13 @@ public class Node implements NodeInterface {
 
     private String getLocalAddress() {
         return "127.0.0.1:" + port;
+    }
+
+    // Method to add nodes to the address table when discovered
+    private void addNodeToAddressTable(String nodeName, String address) {
+        if (!addressTable.containsKey(nodeName)) {
+            addressTable.put(nodeName, address);
+            System.out.println("Added node: " + nodeName + " with address: " + address);
+        }
     }
 }
