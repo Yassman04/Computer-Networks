@@ -151,7 +151,11 @@ public class Node implements NodeInterface {
         if ("HELLO".equals(command)) {
             String nodeName = parts[1];
             String address = parts[2];
-            addNodeToAddressTable(nodeName, address);  // Add node to address table
+
+            // Only add nodes to the address table if they are not the same as this node
+            if (!getLocalAddress().equals(address)) {
+                addNodeToAddressTable(nodeName, address);
+            }
         } else if ("G".equals(command)) {
             sendMessage("H " + nodeName, getSenderAddress());
         } else if ("W".equals(command)) {
@@ -203,12 +207,14 @@ public class Node implements NodeInterface {
         // If not found locally, ask the other nodes.
         System.out.println("Key not found locally. Asking other nodes...");
         for (String address : addressTable.values()) {
-            System.out.println("Querying node at: " + address);
-            sendMessage("R " + key, address);
-            String response = receiveMessage();
-            if (response != null && response.startsWith("S Y")) {
-                System.out.println("Received response from other node: " + response.substring(4));
-                return response.substring(4);
+            if (!getLocalAddress().equals(address)) {  // Don't query itself
+                System.out.println("Querying node at: " + address);
+                sendMessage("R " + key, address);
+                String response = receiveMessage();
+                if (response != null && response.startsWith("S Y")) {
+                    System.out.println("Received response from other node: " + response.substring(4));
+                    return response.substring(4);
+                }
             }
         }
 
@@ -282,7 +288,7 @@ public class Node implements NodeInterface {
 
     // Method to add nodes to the address table when discovered
     private void addNodeToAddressTable(String nodeName, String address) {
-        if (!addressTable.containsKey(nodeName)) {
+        if (!getLocalAddress().equals(address) && !addressTable.containsKey(nodeName)) {
             addressTable.put(nodeName, address);
             System.out.println("Added node: " + nodeName + " with address: " + address);
         }
