@@ -141,23 +141,60 @@ public class Node implements NodeInterface {
 
     public String read(String key) throws Exception {
         System.out.println("Reading key: " + key);
-        
+
+        //Check if the key is found locally
         if (keyValueStore.containsKey(key)) {
             System.out.println("Found locally: " + keyValueStore.get(key));
             return keyValueStore.get(key);
         }
 
         System.out.println("Key not found locally. Asking other nodes...");
-        for (String address : addressTable.values()) {
+
+        // query other nodes for the key
+        Set<String> queriedNodes = new HashSet<>();
+        Queue<String> nodesToQuery = new LinkedList<>(addressTable.values());  // Queue with nodes to query
+
+        while (!nodesToQuery.isEmpty()) {
+            String address = nodesToQuery.poll();
+
+            // Skip nodes we've already queried
+            if (queriedNodes.contains(address)) {
+                continue;
+            }
+            queriedNodes.add(address);
+
             System.out.println("Querying node at: " + address);
-            sendMessage("R " + key, address);
+            sendMessage("R " + key, address);  // Send request to the node
+
+            //Receive response
             String response = receiveMessage();
-            if (response != null && response.startsWith("S Y")) {
-                System.out.println("Received response from other node: " + response.substring(4));
-                return response.substring(4);
+            if (response == null) {
+                continue;  // No response, skip to the next node
+            }
+
+            //Handle different response types
+            String[] responseParts = response.split(" ", 2);
+            String responseType = responseParts[0];
+
+            if (responseType.equals("S")) {
+                // 'S' means the node has data for the key (either 'S Y <data>' or 'S N')
+                if (responseParts[1].equals("Y")) {
+                    System.out.println("Found data: " + responseParts[1].substring(2));  // Data part
+                    return responseParts[1].substring(2);  // Return the actual data
+                }
+            } else if (responseType.equals("O")) {
+                // 'O' means the node doesn't have the data but suggests another node
+                String suggestedNode = responseParts[1];
+                System.out.println("Node does not have data, suggesting node: " + suggestedNode);
+
+                // Add the suggested node to the query list if not already queried
+                if (!queriedNodes.contains(suggestedNode)) {
+                    nodesToQuery.add(suggestedNode);
+                }
             }
         }
 
+        //If no data is found after querying all nodes
         System.out.println("No other nodes had the key.");
         return null;
     }
