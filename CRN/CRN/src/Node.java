@@ -87,7 +87,7 @@ interface NodeInterface {
 // Complete this!
 public class Node implements NodeInterface {
 
-    private String nodeName;
+   private String nodeName;
     private int port;
     private DatagramSocket socket;
     private Map<String, String> keyValueStore = new HashMap<>();
@@ -113,8 +113,7 @@ public class Node implements NodeInterface {
             if (message != null) {
                 processMessage(message);
             }
-        } catch (SocketTimeoutException e) {
-            System.out.println("No incoming messages within timeout.");
+        } catch (SocketTimeoutException ignored) {
         }
     }
 
@@ -142,27 +141,49 @@ public class Node implements NodeInterface {
 
     public String read(String key) throws Exception {
         System.out.println("Reading key: " + key);
+        
         if (keyValueStore.containsKey(key)) {
+            System.out.println("Found locally: " + keyValueStore.get(key));
             return keyValueStore.get(key);
         }
 
+        System.out.println("Key not found locally. Asking other nodes...");
         for (String address : addressTable.values()) {
+            System.out.println("Querying node at: " + address);
             sendMessage("R " + key, address);
             String response = receiveMessage();
             if (response != null && response.startsWith("S Y")) {
+                System.out.println("Received response from other node: " + response.substring(4));
                 return response.substring(4);
             }
         }
+
+        System.out.println("No other nodes had the key.");
         return null;
     }
 
     public boolean write(String key, String value) throws Exception {
         System.out.println("Writing key: " + key + " with value: " + value);
-        keyValueStore.put(key, value);
-        return true;
+        
+        String nearestNode = getNearestNode(key);
+        if (nearestNode == null || nearestNode.equals(getLocalAddress())) {
+            keyValueStore.put(key, value);
+            return true;
+        }
+        
+        sendMessage("W " + key + " " + value, nearestNode);
+        String response = receiveMessage();
+        return response != null && response.startsWith("X A");
     }
 
     public boolean CAS(String key, String currentValue, String newValue) throws Exception {
+        String nearestNode = getNearestNode(key);
+        if (nearestNode != null && !nearestNode.equals(getLocalAddress())) {
+            sendMessage("CAS " + key + " " + currentValue + " " + newValue, nearestNode);
+            String response = receiveMessage();
+            return response != null && response.startsWith("CAS A");
+        }
+
         if (keyValueStore.containsKey(key) && keyValueStore.get(key).equals(currentValue)) {
             keyValueStore.put(key, newValue);
             return true;
@@ -179,42 +200,22 @@ public class Node implements NodeInterface {
 
         if ("G".equals(command)) {
             sendMessage("H " + nodeName, getSenderAddress());
-
         } else if ("W".equals(command)) {
             if (parts.length < 3) return;
-            String key = parts[1];
-            String value = parts[2];
-
-            keyValueStore.put(key, value);
-            if (key.startsWith("N:")) {
-                addressTable.put(key, value);
-            }
+            keyValueStore.put(parts[1], parts[2]);
             sendMessage("X A", getSenderAddress());
-
         } else if ("R".equals(command)) {
             if (parts.length < 2) return;
-            String key = parts[1];
-            String value = keyValueStore.get(key);
+            String value = keyValueStore.get(parts[1]);
             sendMessage(value != null ? "S Y " + value : "S N", getSenderAddress());
-
-        } else if ("E".equals(command)) {
-            if (parts.length < 2) return;
-            String key = parts[1];
-            sendMessage("F " + (keyValueStore.containsKey(key) ? "Y" : "N"), getSenderAddress());
-
-        } else {
-            sendMessage("ERR Unknown Command", getSenderAddress());
         }
     }
 
-    private void sendMessage(String message, String address) throws Exception {
-        if (!relayStack.isEmpty()) {
-            String relayNode = relayStack.pop();
-            address = addressTable.get(relayNode);
-            sendMessage("RELAY " + message, address);
-            return;
-        }
+    private String getNearestNode(String key) throws Exception {
+        return addressTable.isEmpty() ? null : addressTable.values().iterator().next();
+    }
 
+    private void sendMessage(String message, String address) throws Exception {
         String[] addrParts = address.split(":");
         InetAddress ip = InetAddress.getByName(addrParts[0]);
         int port = Integer.parseInt(addrParts[1]);
@@ -233,5 +234,9 @@ public class Node implements NodeInterface {
 
     private String getSenderAddress() {
         return "127.0.0.1:" + (port - 1);
+    }
+
+    private String getLocalAddress() {
+        return "127.0.0.1:" + port;
     }
 }
