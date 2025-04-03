@@ -87,7 +87,7 @@ interface NodeInterface {
 // Complete this!
 public class Node implements NodeInterface {
 
-   private String nodeName;
+    private String nodeName;
     private int port;
     private DatagramSocket socket;
     private Map<String, String> keyValueStore = new HashMap<>();
