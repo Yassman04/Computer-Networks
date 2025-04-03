@@ -24,22 +24,22 @@ import java.util.Date;
 import java.util.Random;
 
 class AzureLabTest {
-     public static void main (String[] args) {
-        String emailAddress = "your_email@example.com"; // Set your email address here
-        if (emailAddress.indexOf('@') == -1) {
+     public static void main (String [] args) {
+        String emailAddress = "Put your e-mail address here!";
+        if (false && emailAddress.indexOf('@') == -1) {
             System.err.println("Please set your e-mail address!");
             System.exit(1);
         }
-        String ipAddress = "your_ip_address_here"; // Set the IP address of the Azure lab machine here
-        if (ipAddress.indexOf('.') == -1) {
-            System.err.println("Please set your IP address!");
+        String ipAddress = "Put the IP address of Azure lab machine here!  It should start with 10";
+        if (false && ipAddress.indexOf('.') == -1) {
+            System.err.println("Please set your ip address!");
             System.exit(1);
         }
 
         try {
             // Create the Node and initialize
             Node node = new Node();
-            String nodeName = "N:" + emailAddress;
+            String nodeName = "N:Node";
             node.setNodeName(nodeName);
 
             int port = 20110; // Node port
@@ -50,12 +50,12 @@ class AzureLabTest {
 
             // Check if any other nodes are active
             System.out.println("Checking if other nodes are active...");
-            boolean active = node.isActive("N:" + emailAddress);
+            boolean active = node.isActive("N:Node");
             System.out.println("Other nodes active? " + active);
 
             // Register the node on the network (write address of node to network)
             System.out.println("Registering node on network...");
-            node.write(nodeName, ipAddress + ":" + port);
+            node.write(nodeName, "127.0.0.1:" + port);  // Using localhost for testing
             Thread.sleep(5000); // Wait for some time to ensure registration
 
             // Test reading keys (poem) from the network
