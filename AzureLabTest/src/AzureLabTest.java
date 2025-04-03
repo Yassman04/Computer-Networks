@@ -24,51 +24,56 @@ import java.util.Date;
 import java.util.Random;
 
 class AzureLabTest {
-    public static void main (String [] args) {
-        String emailAddress = "Put your e-mail address here!";
-        if (false && emailAddress.indexOf('@') == -1) {
+     public static void main (String[] args) {
+        String emailAddress = "your_email@example.com"; // Set your email address here
+        if (emailAddress.indexOf('@') == -1) {
             System.err.println("Please set your e-mail address!");
             System.exit(1);
         }
-        String ipAddress = "Put the IP address of Azure lab machine here!";
-        if (false && ipAddress.indexOf('.') == -1) {
-            System.err.println("Please set your ip address!");
+        String ipAddress = "your_ip_address_here"; // Set the IP address of the Azure lab machine here
+        if (ipAddress.indexOf('.') == -1) {
+            System.err.println("Please set your IP address!");
             System.exit(1);
         }
 
         try {
+            // Create the Node and initialize
             Node node = new Node();
             String nodeName = "N:" + emailAddress;
             node.setNodeName(nodeName);
 
-            int port = 20110;
+            int port = 20110; // Node port
             node.openPort(port);
 
             System.out.println("Waiting for another node to get in contact...");
-            node.handleIncomingMessages(5000);
+            node.handleIncomingMessages(5000); // Wait for 5 seconds for incoming messages
 
+            // Check if any other nodes are active
             System.out.println("Checking if other nodes are active...");
             boolean active = node.isActive("N:" + emailAddress);
             System.out.println("Other nodes active? " + active);
 
+            // Register the node on the network (write address of node to network)
             System.out.println("Registering node on network...");
             node.write(nodeName, ipAddress + ":" + port);
-            Thread.sleep(5000);
+            Thread.sleep(5000); // Wait for some time to ensure registration
 
+            // Test reading keys (poem) from the network
             System.out.println("Getting the poem...");
             for (int i = 0; i < 7; ++i) {
                 String key = "D:jabberwocky" + i;
                 String value = node.read(key);
                 if (value == null) {
                     System.err.println("Can't find poem verse " + i);
-                    System.exit(2);
+                    System.exit(2); // Exit if any key cannot be found
                 } else {
-                    System.out.println(value);
+                    System.out.println(value); // Print each poem verse
                 }
             }
 
+            // Handling incoming messages indefinitely (simulating continuous operation)
             System.out.println("Handling incoming connections...");
-            node.handleIncomingMessages(0);
+            node.handleIncomingMessages(0); // Listen indefinitely for incoming messages
 
         } catch (Exception e) {
             System.err.println("Exception during AzureLabTest");
