@@ -87,18 +87,31 @@ interface NodeInterface {
 // Complete this!
 public class Node implements NodeInterface {
 
-    private String nodeName;
+   private String nodeName;
+    private byte[] nodeHashID;  // Store the unique hash ID
     private int port;
     private DatagramSocket socket;
     private Map<String, String> keyValueStore = new HashMap<>();
-    private Stack<String> relayStack = new Stack<>();
     private Map<String, String> addressTable = new HashMap<>();
+    private Stack<String> relayStack = new Stack<>();
     private Set<String> receivedMessages = new HashSet<>();
 
     public void setNodeName(String nodeName) throws Exception {
         this.nodeName = nodeName;
+        this.nodeHashID = HashID.computeHashID(nodeName);  
         System.out.println("Node name set to: " + nodeName);
+        System.out.println("Generated Hash ID: " + bytesToHex(nodeHashID));
     }
+
+    // Utility method to convert byte array to hex string for display
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : bytes) {
+            hexString.append(String.format("%02x", b));
+        }
+        return hexString.toString();
+    }
+
 
     public void openPort(int portNumber) throws Exception {
         this.port = portNumber;
