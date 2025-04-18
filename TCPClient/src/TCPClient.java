@@ -9,7 +9,7 @@ import java.io.*;
           String IPAddressString = "10.200.51.18";
           InetAddress host = InetAddress.getByName(IPAddressString);
 
-          int port = 8044;
+          int port = 4022;
 
           while (true) {
               System.out.println("Connecting to " + host + ":" + port);
