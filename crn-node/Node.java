@@ -1,16 +1,8 @@
-// IN2011 Computer Networks
-// Coursework 2024/2025
+// CRN node: a peer in a distributed key-value store that communicates over UDP.
+// Author: Yaseen Mneimneih (Computer Networks module, 2024/25)
 //
-// Submission by
-//  Yaseen Mneimneih
-//  230008838
-//  Yaseen.Mneimneih@city.ac.uk
-
-
-// DO NOT EDIT starts
-// This gives the interface that your code must implement.
-// These descriptions are intended to help you understand how the interface
-// will be used. See the RFC for how the protocol works.
+// The NodeInterface below was provided as part of the module specification
+// and describes the operations every node on the network must support.
 
 import java.net.*;
 import java.util.*;
@@ -82,19 +74,16 @@ interface NodeInterface {
     public boolean CAS(String key, String currentValue, String newValue) throws Exception;
 
 }
-// DO NOT EDIT ends
-
-// Complete this!
 public class Node implements NodeInterface {
 
-   private String nodeName;
+    private String nodeName;
     private byte[] nodeHashID;  // Store the unique hash ID
     private int port;
     private DatagramSocket socket;
-    private Map<String, String> keyValueStore = new HashMap<>();
-    private Map<String, String> addressTable = new HashMap<>();
-    private Stack<String> relayStack = new Stack<>();
-    private Set<String> receivedMessages = new HashSet<>();
+    private Map<String, String> keyValueStore = new HashMap<>();   // data stored on this node
+    private Map<String, String> addressTable = new HashMap<>();    // known nodes: name -> ip:port
+    private Stack<String> relayStack = new Stack<>();              // nodes to relay messages through
+    private Set<String> receivedMessages = new HashSet<>();        // used to ignore duplicate messages
 
     public void setNodeName(String nodeName) throws Exception {
         this.nodeName = nodeName;
@@ -213,6 +202,7 @@ public class Node implements NodeInterface {
         return false;
     }
 
+    // Dispatches an incoming message to the right handler based on its command word
     private void processMessage(String message) throws Exception {
         if (receivedMessages.contains(message)) return;
         receivedMessages.add(message);
@@ -241,6 +231,8 @@ public class Node implements NodeInterface {
         }
     }
 
+    // Simplified: returns the first known node rather than the node whose
+    // hash ID is closest to the key's hash ID.
     private String getNearestNode(String key) throws Exception {
         return addressTable.isEmpty() ? null : addressTable.values().iterator().next();
     }

@@ -1,17 +1,10 @@
-// IN2011 Computer Networks
-// Coursework 2024/2025
-//
-// This is a test program to show how Node.java can be used.
+// Local test harness for Node.java (provided with the module).
 // It creates a number of instances of Node.java, each in their own thread.
 // A bootstrapping stage gives each of the nodes the addresses of a few others.
 // Then it performs some basic tests on the network.
 //
-// Running this test is not enough to check that all of the features of your
-// implementation work.  You will need to do your own testing as well.
-// You are welcome to edit this but your submission must also work with the unedited version.
-// You can run this on your own computer or on the virtual lab computers.
-// Even when run on the virtual lab computers it will still only communicate between your nodes.
-// So it is not suitable to record the wireshark evidence of things working.
+// Runs entirely on your own machine using localhost ports 20110 upwards.
+// Usage: java LocalTest [numberOfNodes]   (2 to 10, default 2)
 
 import java.lang.Math;
 import java.net.DatagramPacket;
@@ -106,7 +99,7 @@ class LocalTest {
 	    // Read them back to make sure the other node handled them correctly
 	    for (int i = 0; i < lines.size(); ++i) {
 		String key = "D:Juliet-" + i;
-		System.out.print("Trying to write " + key);
+		System.out.print("Trying to read " + key);
 		String value = nodes[0].read(key);
 		if (value == null) {
 		    System.out.println(" not found?");
